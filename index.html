@@ -827,7 +827,20 @@
 <!-- ── LOGIN ── -->
 
 <!-- ── APP ── -->
-<div id="app" style="display:block">
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">🏠</div>
+    <h1>Tafoy Real Estate CRM</h1>
+    <p>Sign in to view your leads</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()" />
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
+    <button class="btn-primary" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error" style="display:none"></div>
+    <div class="login-hint">Authorized access only</div>
+  </div>
+</div>
+
+<div id="app">
   <div class="layout">
 
     <!-- Sidebar -->
@@ -1546,6 +1559,47 @@
 
 <script>
   const PASSWORD = 'tafoy2024';
+  // ===== SUPABASE BACKEND =====
+  const SUPABASE_URL = 'https://bovhpvqtiocfhpzjgbab.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvdmhwdnF0aW9jZmhwempnYmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDQ1MTQsImV4cCI6MjA5Nzg4MDUxNH0.rVith5a5b2gTzMJf-aSoEi0tW9xLh0ussoDF70ywPgE';
+  let SB_TOKEN = null;
+  function sbHeaders(extra){
+    var hd = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + (SB_TOKEN || SUPABASE_ANON), 'Content-Type': 'application/json' };
+    if (extra) for (var k in extra) hd[k] = extra[k];
+    return hd;
+  }
+  function handleAuthFail(){
+    try { localStorage.removeItem('sb_token'); } catch(e){}
+    SB_TOKEN = null;
+    var a=document.getElementById('app'); if(a) a.style.display='none';
+    var l=document.getElementById('login-screen'); if(l) l.style.display='flex';
+  }
+  async function doLogin(){
+    var email=(document.getElementById('login-email').value||'').trim();
+    var pw=document.getElementById('login-password').value||'';
+    var errEl=document.getElementById('login-error');
+    errEl.style.display='none';
+    if(!email||!pw){ errEl.textContent='Enter your email and password.'; errEl.style.display='block'; return; }
+    try{
+      var r=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{'apikey':SUPABASE_ANON,'Content-Type':'application/json'},body:JSON.stringify({email:email,password:pw})});
+      var d=await r.json();
+      if(!r.ok || !d.access_token){ throw new Error(d.error_description||d.msg||d.error||'Invalid email or password'); }
+      SB_TOKEN=d.access_token;
+      try{ localStorage.setItem('sb_token', SB_TOKEN); }catch(e){}
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='block';
+      initPhotos(function(){ loadLeads(); });
+    }catch(e){ errEl.textContent=e.message; errEl.style.display='block'; }
+  }
+  function sbUpdateLead(l){
+    if(!SB_TOKEN) return;
+    var payload={name:l.name,email:l.email,phone:l.phone,property_address:l.property_address,ownership:l.ownership,timeline:l.timeline,property_type:l.property_type,condition:l.condition,reason:l.reason,mortgage:l.mortgage,price_range:l.price_range,status:l.status};
+    fetch(SUPABASE_URL+'/rest/v1/leads?id=eq.'+encodeURIComponent(l.id),{method:'PATCH',headers:sbHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(payload)}).then(function(r){if(!r.ok)r.text().then(function(t){console.warn('[CRM] update failed',r.status,t);});}).catch(function(e){console.warn('[CRM] update err',e);});
+  }
+  function sbDeleteLead(id){
+    if(!SB_TOKEN) return;
+    fetch(SUPABASE_URL+'/rest/v1/leads?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbHeaders({'Prefer':'return=minimal'})}).then(function(r){if(!r.ok)r.text().then(function(t){console.warn('[CRM] delete failed',r.status,t);});}).catch(function(e){console.warn('[CRM] delete err',e);});
+  }
   let leads = [];
   let currentId = null;
   let filterStatus = 'All';
@@ -1621,16 +1675,24 @@
   }
 
   // ── AUTO START ──
-  function logout() { location.reload(); }
+  function logout() { try{localStorage.removeItem('sb_token');}catch(e){} location.reload(); }
 
   // ── DATA ──
   function loadLeads() {
-    const raw = localStorage.getItem('tafoy_leads');
-    leads = raw ? JSON.parse(raw) : getSampleLeads();
-    if (!raw) saveLeads();
-    renderLeads();
-    renderStats();
-    renderSidebar();
+    fetch(SUPABASE_URL + '/rest/v1/leads?select=*&order=created_at.desc', { headers: sbHeaders() })
+      .then(function(r){ if(r.status===401){ handleAuthFail(); return null; } return r.json(); })
+      .then(function(data){
+        if(!data) return;
+        if(!Array.isArray(data)){ console.warn('[CRM] leads load unexpected', data); return; }
+        leads = data;
+        try { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); } catch(e){}
+        renderLeads(); renderStats(); renderSidebar();
+      })
+      .catch(function(e){
+        console.warn('[CRM] loadLeads error', e);
+        var raw=null; try{ raw=localStorage.getItem('tafoy_leads'); }catch(_){}
+        if(raw){ leads=JSON.parse(raw); renderLeads(); renderStats(); renderSidebar(); }
+      });
   }
   function saveLeads() { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); }
 
@@ -2370,6 +2432,7 @@
       pendingPhotoData = null;
     }
 
+    sbUpdateLead(l);
     saveLeads();
     closeModal('view-modal');
     renderLeads(); renderStats(); renderSidebar();
@@ -2378,6 +2441,7 @@
 
   function deleteLead() {
     if (!confirm('Delete this lead? This cannot be undone.')) return;
+    sbDeleteLead(currentId);
     leads = leads.filter(l => l.id !== currentId);
     saveLeads();
     closeModal('view-modal');
@@ -2387,19 +2451,22 @@
 
   // ── ADD LEAD — creates blank lead and opens the same drawer ──
   function openAddModal() {
-    const newLead = {
-      id: Date.now(),
-      name: '',
-      email: '', phone: '', property_address: '',
-      property_type: '', condition: '', ownership: '',
-      timeline: '', reason: '', mortgage: '',
-      price_range: '', status: 'New', notes: '',
-      created_at: new Date().toISOString(),
-    };
-    leads.unshift(newLead);
-    saveLeads();
-    renderLeads(); renderStats(); renderSidebar();
-    openLead(newLead.id);
+    var blank = { name:'', email:'', phone:'', property_address:'', property_type:'', condition:'', ownership:'', timeline:'', reason:'', mortgage:'', price_range:'', status:'New' };
+    if(!SB_TOKEN){
+      var nl = Object.assign({ id: Date.now(), notes:'', created_at: new Date().toISOString() }, blank);
+      leads.unshift(nl); saveLeads(); renderLeads(); renderStats(); renderSidebar(); openLead(nl.id); return;
+    }
+    fetch(SUPABASE_URL + '/rest/v1/leads', { method:'POST', headers: sbHeaders({'Prefer':'return=representation'}), body: JSON.stringify(blank) })
+      .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, status:r.status, d:d }; }); })
+      .then(function(res){
+        if(!res.ok){ console.warn('[CRM] add failed', res.status, res.d); alert('Could not add lead: ' + ((res.d&&res.d.message)||res.status)); return; }
+        var row = Array.isArray(res.d) ? res.d[0] : res.d;
+        leads.unshift(row);
+        try { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); } catch(e){}
+        renderLeads(); renderStats(); renderSidebar();
+        openLead(row.id);
+      })
+      .catch(function(e){ console.warn('[CRM] add err', e); alert('Could not add lead: ' + e.message); });
   }
 
   // ── UTILS ──
@@ -2943,7 +3010,18 @@
     document.getElementById('c-broker').textContent=fmt(broker);
     document.getElementById('c-agent').textContent=fmt(agent);
   }
-  initPhotos(function() { loadLeads(); });
+  (function boot(){
+    var t=null; try{ t=localStorage.getItem('sb_token'); }catch(e){}
+    if(t){
+      SB_TOKEN=t;
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='block';
+      initPhotos(function(){ loadLeads(); });
+    } else {
+      document.getElementById('login-screen').style.display='flex';
+      document.getElementById('app').style.display='none';
+    }
+  })();
 </script>
 </body>
 </html>
