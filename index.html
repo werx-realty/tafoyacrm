@@ -873,6 +873,9 @@
       <div class="nav-item" onclick="setView('phonebook',this)">
         <span class="nav-icon">📒</span> Phonebook
       </div>
+      <div class="nav-item" id="nav-admin" style="display:none" onclick="setView('admin',this)">
+        <span class="nav-icon">⚙️</span> Admin
+      </div>
       <div class="sidebar-bottom">
         <div class="sidebar-stats">
           <div class="ss-label">Pipeline</div>
@@ -1151,6 +1154,27 @@
         </div>
       </div>
       <!-- PHONEBOOK -->
+      <div id="admin-view" style="display:none">
+        <div style="max-width:760px">
+          <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">Admin &amp; Users</h2>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:24px">Add or remove people who can log into this CRM.</p>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:24px">
+            <div style="font-weight:600;margin-bottom:14px">Add a user</div>
+            <input id="au-email" type="email" placeholder="Email" style="width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--faint);border-radius:9px;color:var(--text);font-size:14px;margin-bottom:10px;outline:none" />
+            <input id="au-password" type="text" placeholder="Temporary password" style="width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--faint);border-radius:9px;color:var(--text);font-size:14px;margin-bottom:10px;outline:none" />
+            <select id="au-mode" style="width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--faint);border-radius:9px;color:var(--text);font-size:14px;margin-bottom:14px;outline:none">
+              <option value="shared">Shared workspace — sees all leads (incl. website)</option>
+              <option value="private">Private workspace — their own blank CRM</option>
+            </select>
+            <button class="btn-primary" style="width:auto;padding:11px 22px" onclick="adminAddUser()">Add User</button>
+            <div id="au-msg" style="font-size:13px;margin-top:12px"></div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px">
+            <div style="font-weight:600;margin-bottom:14px">Current users</div>
+            <div id="au-list" style="font-size:14px">Loading…</div>
+          </div>
+        </div>
+      </div>
       <div id="phonebook-view">
         <!-- Header -->
         <div class="pb-header">
@@ -1563,6 +1587,48 @@
   const SUPABASE_URL = 'https://bovhpvqtiocfhpzjgbab.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvdmhwdnF0aW9jZmhwempnYmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDQ1MTQsImV4cCI6MjA5Nzg4MDUxNH0.rVith5a5b2gTzMJf-aSoEi0tW9xLh0ussoDF70ywPgE';
   let SB_TOKEN = null;
+  let CURRENT_ROLE='agent', CURRENT_WORKSPACE='shared';
+  function parseSession(){
+    try{
+      var p=SB_TOKEN.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+      var pad=p.length%4; if(pad) p+='='.repeat(4-pad);
+      var claims=JSON.parse(atob(p));
+      var am=claims.app_metadata||{};
+      CURRENT_ROLE=am.role||'agent';
+      CURRENT_WORKSPACE=am.workspace||'shared';
+    }catch(e){ CURRENT_ROLE='agent'; CURRENT_WORKSPACE='shared'; }
+    var na=document.getElementById('nav-admin'); if(na) na.style.display=(CURRENT_ROLE==='admin')?'':'none';
+  }
+  function adminRender(){
+    var list=document.getElementById('au-list'); if(!list) return; list.textContent='Loading…';
+    fetch('/api/users',{headers:{'Authorization':'Bearer '+SB_TOKEN}}).then(function(r){return r.json();}).then(function(d){
+      if(!d.users){ list.textContent=(d.error||'Could not load users'); return; }
+      if(!d.users.length){ list.textContent='No users yet.'; return; }
+      list.innerHTML=d.users.map(function(u){
+        var tag=(u.role==='admin')?'Admin':(u.workspace==='shared'?'Shared':'Private');
+        var right=(u.role==='admin')?'<span style="color:var(--muted);font-size:12px">admin</span>':'<button onclick="adminDeleteUser(\''+u.id+'\',\''+(u.email||'').replace(/\x27/g,'')+'\')" style="background:none;border:1px solid var(--faint);color:var(--red);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px">Remove</button>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--faint)"><div><div>'+(u.email||'')+'</div><div style="color:var(--muted);font-size:12px">'+tag+'</div></div>'+right+'</div>';
+      }).join('');
+    }).catch(function(e){ list.textContent='Error loading users.'; });
+  }
+  function adminAddUser(){
+    var email=(document.getElementById('au-email').value||'').trim();
+    var pw=document.getElementById('au-password').value||'';
+    var mode=document.getElementById('au-mode').value;
+    var msg=document.getElementById('au-msg');
+    msg.style.color='var(--muted)'; msg.textContent='Adding…';
+    if(!email||!pw){ msg.style.color='var(--red)'; msg.textContent='Email and password required.'; return; }
+    fetch('/api/users',{method:'POST',headers:{'Authorization':'Bearer '+SB_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({email:email,password:pw,mode:mode})}).then(function(r){return r.json().then(function(d){return{ok:r.ok,d:d};});}).then(function(res){
+      if(!res.ok){ msg.style.color='var(--red)'; msg.textContent=(res.d.error||'Could not add user'); return; }
+      msg.style.color='var(--green)'; msg.textContent='User added ✓';
+      document.getElementById('au-email').value=''; document.getElementById('au-password').value='';
+      adminRender();
+    }).catch(function(e){ msg.style.color='var(--red)'; msg.textContent='Error: '+e.message; });
+  }
+  function adminDeleteUser(id,email){
+    if(!confirm('Remove '+email+'? They will lose access.')) return;
+    fetch('/api/users?id='+encodeURIComponent(id),{method:'DELETE',headers:{'Authorization':'Bearer '+SB_TOKEN}}).then(function(r){return r.json();}).then(function(d){ adminRender(); }).catch(function(e){ adminRender(); });
+  }
   function sbHeaders(extra){
     var hd = { 'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + (SB_TOKEN || SUPABASE_ANON), 'Content-Type': 'application/json' };
     if (extra) for (var k in extra) hd[k] = extra[k];
@@ -1586,6 +1652,7 @@
       if(!r.ok || !d.access_token){ throw new Error(d.error_description||d.msg||d.error||'Invalid email or password'); }
       SB_TOKEN=d.access_token;
       try{ localStorage.setItem('sb_token', SB_TOKEN); }catch(e){}
+      parseSession();
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='block';
       initPhotos(function(){ loadLeads(); });
@@ -1782,7 +1849,7 @@
   function setView(view, el) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     if (el) el.classList.add('active');
-    var titles = { dashboard:'Dashboard', leads:'All Leads', pipeline:'Deal Process', calendar:'Calendar', notepad:'Notepad', calculator:'Calculators', streetview:'Street View', phonebook:'Phonebook' };
+    var titles = { dashboard:'Dashboard', leads:'All Leads', pipeline:'Deal Process', calendar:'Calendar', notepad:'Notepad', calculator:'Calculators', streetview:'Street View', phonebook:'Phonebook', admin:'Admin & Users' };
     document.getElementById('view-title').textContent = titles[view] || 'All Leads';
     document.querySelector('.stats-row').style.display        = view==='leads' ? '' : 'none';
     document.querySelector('.filter-bar').style.display       = view==='leads' ? '' : 'none';
@@ -1794,6 +1861,7 @@
     document.getElementById('calculator-view').style.display  = view==='calculator'  ? 'block' : 'none';
     document.getElementById('street-view-view').style.display = view==='streetview'  ? 'block' : 'none';
     document.getElementById('phonebook-view').style.display   = view==='phonebook'   ? 'block' : 'none';
+    var _av=document.getElementById('admin-view'); if(_av) _av.style.display = view==='admin' ? 'block' : 'none';
     var btn = document.getElementById('top-add-btn');
     if (btn) btn.textContent = view==='calendar' ? '+ Add Event' : '+ Add Lead';
     if (view==='pipeline')  renderKanban();
@@ -1802,6 +1870,7 @@
     if (view==='dashboard') dashFill();
     if (view==='streetview') { svRenderLeads(); }
     if (view==='phonebook') pbRender();
+    if (view==='admin') adminRender();
   }
 
   // ── NOTEPAD ──
@@ -2451,7 +2520,7 @@
 
   // ── ADD LEAD — creates blank lead and opens the same drawer ──
   function openAddModal() {
-    var blank = { name:'', email:'', phone:'', property_address:'', property_type:'', condition:'', ownership:'', timeline:'', reason:'', mortgage:'', price_range:'', status:'New' };
+    var blank = { name:'', email:'', phone:'', property_address:'', property_type:'', condition:'', ownership:'', timeline:'', reason:'', mortgage:'', price_range:'', status:'New', workspace: CURRENT_WORKSPACE };
     if(!SB_TOKEN){
       var nl = Object.assign({ id: Date.now(), notes:'', created_at: new Date().toISOString() }, blank);
       leads.unshift(nl); saveLeads(); renderLeads(); renderStats(); renderSidebar(); openLead(nl.id); return;
@@ -3014,6 +3083,7 @@
     var t=null; try{ t=localStorage.getItem('sb_token'); }catch(e){}
     if(t){
       SB_TOKEN=t;
+      parseSession();
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='block';
       initPhotos(function(){ loadLeads(); });
