@@ -1588,6 +1588,24 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvdmhwdnF0aW9jZmhwempnYmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDQ1MTQsImV4cCI6MjA5Nzg4MDUxNH0.rVith5a5b2gTzMJf-aSoEi0tW9xLh0ussoDF70ywPgE';
   let SB_TOKEN = null;
   let CURRENT_ROLE='agent', CURRENT_WORKSPACE='shared';
+  var _arTimer=null;
+  function startAutoRefresh(){ if(_arTimer) return; _arTimer=setInterval(autoRefreshLeads, 15000); }
+  function autoRefreshLeads(){
+    if(!SB_TOKEN) return;
+    var vm=document.getElementById('view-modal');
+    if(vm && vm.classList.contains('open')) return; // don't disrupt editing
+    fetch(SUPABASE_URL + '/rest/v1/leads?select=*&order=created_at.desc', { headers: sbHeaders() })
+      .then(function(r){ if(r.status===401){ return null; } return r.json(); })
+      .then(function(data){
+        if(!Array.isArray(data)) return;
+        leads = data;
+        try { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); } catch(e){}
+        renderLeads(); renderStats(); renderSidebar();
+        var dv=document.getElementById('dashboard-view'); if(dv && dv.style.display!=='none' && typeof dashFill==='function') dashFill();
+        var pv=document.getElementById('pipeline-view'); if(pv && pv.style.display!=='none' && typeof renderKanban==='function') renderKanban();
+      })
+      .catch(function(e){});
+  }
   function parseSession(){
     try{
       var p=SB_TOKEN.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
@@ -1655,7 +1673,7 @@
       parseSession();
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='block';
-      initPhotos(function(){ loadLeads(); });
+      initPhotos(function(){ loadLeads(); startAutoRefresh(); });
     }catch(e){ errEl.textContent=e.message; errEl.style.display='block'; }
   }
   function sbUpdateLead(l){
@@ -3087,7 +3105,7 @@
       parseSession();
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='block';
-      initPhotos(function(){ loadLeads(); });
+      initPhotos(function(){ loadLeads(); startAutoRefresh(); });
     } else {
       document.getElementById('login-screen').style.display='flex';
       document.getElementById('app').style.display='none';
