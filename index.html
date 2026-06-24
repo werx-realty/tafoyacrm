@@ -2384,14 +2384,15 @@
     document.getElementById('vm-email').value       = l.email || '';
     document.getElementById('vm-phone').value       = l.phone || '';
     document.getElementById('vm-addr').value        = l.property_address || '';
-    document.getElementById('vm-type').value        = l.property_type || '';
-    document.getElementById('vm-condition').value   = l.condition || '';
-    document.getElementById('vm-ownership').value   = l.ownership || '';
-    document.getElementById('vm-timeline').value    = l.timeline || '';
-    document.getElementById('vm-reason').value      = l.reason || '';
-    document.getElementById('vm-mortgage').value    = l.mortgage || '';
+    var setSelV=function(id,val){var s=document.getElementById(id);if(!s)return;val=val||'';if(val && !Array.prototype.some.call(s.options,function(o){return o.value===val||o.text===val;})){var o=document.createElement('option');o.value=val;o.text=val;s.appendChild(o);}s.value=val;};
+    setSelV('vm-type', l.property_type || '');
+    setSelV('vm-condition', l.condition || '');
+    setSelV('vm-ownership', l.ownership || '');
+    setSelV('vm-timeline', l.timeline || '');
+    setSelV('vm-reason', l.reason || '');
+    setSelV('vm-mortgage', l.mortgage || '');
     document.getElementById('vm-price').value       = l.price_range || '';
-    document.getElementById('vm-status').value      = l.status || 'New';
+    setSelV('vm-status', l.status || 'New');
 
     // Load extra data (dates, tasks, docs, notes)
     const extra = getLeadExtra(l.id);
