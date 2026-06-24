@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rehab Analysis Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #1A1810;
+    --surface:   #222018;
+    --surface2:  #2A2720;
+    --surface3:  #302D24;
+    --border:    #3A3828;
+    --border2:   #4A4838;
+    --text:      #F0ECD8;
+    --text2:     #A09880;
+    --text3:     #6A6450;
+    --gold:      #C8922A;
+    --gold-lt:   #E0A830;
+    --gold-dim:  rgba(200,146,42,0.15);
+    --gold-dim2: rgba(200,146,42,0.08);
+    --danger:    #C0392B;
+    --profit:    #4CAF7D;
+    --shadow:    0 2px 8px rgba(0,0,0,0.4);
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.5);
+    --radius:    4px;
+    --radius-lg: 6px;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 0 0 4rem;
+  }
+
+  /* ── TOP BANNER ── */
+  .top-bar {
+    background: var(--surface);
+    border-bottom: 2px solid var(--gold);
+    padding: 18px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .brand h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gold-lt);
+    line-height: 1;
+  }
+
+  .brand p {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-top: 3px;
+  }
+
+  .header-fields {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .hfield {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .hfield label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .hfield input {
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 7px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 140px;
+  }
+
+  .hfield input:focus { border-color: var(--gold); }
+
+  /* ── PAGE WRAP ── */
+  .page-wrap { max-width: 1140px; margin: 0 auto; padding: 32px 24px 0; }
+
+  /* ── METRICS ── */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .metric-card {
+    background: var(--surface2);
+    padding: 16px 20px;
+    border-right: 1px solid var(--border);
+  }
+
+  .metric-card:last-child { border-right: none; }
+
+  .metric-card.highlight { background: var(--gold-dim); }
+
+  .metric-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  .metric-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .metric-card.highlight .metric-value { color: var(--gold-lt); }
+  .metric-value.profit { color: var(--profit); }
+  .metric-value.loss   { color: var(--danger); }
+
+  /* ── PROFIT BAR ── */
+  .profit-summary {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    white-space: nowrap;
+  }
+
+  .stat-pill .slabel {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .stat-pill .sval {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--gold-lt);
+  }
+
+  .bar-wrap { flex: 1; }
+
+  .bar-track {
+    height: 6px;
+    background: var(--surface3);
+    border-radius: 99px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: var(--gold);
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .bar-fill.negative { background: var(--danger); }
+
+  /* ── SECTION CARD ── */
+  .sections-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .section-card.full { grid-column: 1 / -1; }
+
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    height: 44px;
+  }
+
+  .sec-num-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .sec-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--gold);
+    color: #111;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+  }
+
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gold-lt);
+  }
+
+  .section-total {
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--gold-lt);
+  }
+
+  /* ── TABLE HEADER ── */
+  .table-header {
+    display: grid;
+    grid-template-columns: 1fr 100px;
+    gap: 8px;
+    padding: 6px 20px;
+    background: var(--surface3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .th {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  .th.right { text-align: right; }
+
+  .section-body { padding: 10px 20px 16px; }
+
+  /* ── FIELD ROWS ── */
+  .field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .field-row:last-child { border-bottom: none; }
+
+  .field-label {
+    font-size: 13px;
+    color: var(--text2);
+    flex: 1;
+  }
+
+  .input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dollar-sign {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  input[type="number"] {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    width: 100px;
+    text-align: right;
+    padding: 5px 8px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    color: var(--gold-lt);
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  input[type="number"]:hover { border-color: var(--border2); background: var(--surface3); }
+
+  input[type="number"]:focus {
+    border-color: var(--gold);
+    background: var(--surface3);
+    box-shadow: 0 0 0 2px rgba(200,146,42,0.18);
+  }
+
+  /* ── REHAB SUB LAYOUT ── */
+  .rehab-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .rehab-col { padding: 10px 20px 16px; }
+  .rehab-col:first-child { border-right: 1px solid var(--border); }
+
+  .rehab-sub-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rehab-sub-sub-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    margin: 12px 0 6px;
+  }
+
+  .compact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 12px;
+  }
+
+  .compact-field { display: flex; flex-direction: column; gap: 2px; }
+
+  .compact-label {
+    font-size: 11px;
+    color: var(--text3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compact-field input[type="number"] {
+    width: 100%;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+
+  .sub-total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .sub-total-row span:last-child {
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    color: var(--gold-lt);
+  }
+
+  /* ── SELLING GRID ── */
+  .selling-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px 16px;
+  }
+
+  /* ── RESET BTN ── */
+  .reset-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 7px 18px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .reset-btn:hover { border-color: var(--gold); color: var(--gold-lt); background: var(--gold-dim2); }
+  .reset-btn:active { transform: scale(0.97); }
+
+  /* ── FOOTER ── */
+  .page-footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text3);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 860px) {
+    .top-bar { flex-direction: column; align-items: flex-start; padding: 16px 20px; }
+    .header-fields { flex-wrap: wrap; gap: 10px; }
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+    .metric-card { border-bottom: 1px solid var(--border); }
+    .sections-grid { grid-template-columns: 1fr; }
+    .section-card.full { grid-column: 1; }
+    .rehab-cols { grid-template-columns: 1fr; }
+    .rehab-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+    .selling-grid { grid-template-columns: 1fr 1fr; }
+    .profit-summary { flex-wrap: wrap; gap: 12px; }
+    .page-wrap { padding: 20px 12px 0; }
+  }
+
+  @media (max-width: 500px) {
+    .metrics-grid { grid-template-columns: 1fr 1fr; }
+    .selling-grid { grid-template-columns: 1fr; }
+    .compact-grid { grid-template-columns: 1fr; }
+    input[type="number"] { width: 90px; }
+    .brand h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BANNER -->
+<div class="top-bar">
+  <div class="brand">
+    <h1>Rehab Estimate</h1>
+    <p>Property Inspection &amp; Repair Cost Analysis</p>
+  </div>
+  <div class="header-fields">
+    <div class="hfield">
+      <label>Property Address</label>
+      <input type="text" placeholder="123 Main St" style="min-width:200px;">
+    </div>
+    <div class="hfield">
+      <label>City / State</label>
+      <input type="text" placeholder="City, ST" style="min-width:130px;">
+    </div>
+    <div class="hfield">
+      <label>Date</label>
+      <input type="date" style="min-width:140px;">
+    </div>
+    <div class="hfield">
+      <label>Sq Ft (Living)</label>
+      <input type="number" placeholder="1500" style="min-width:100px;">
+    </div>
+    <button class="reset-btn" onclick="resetAll()">↺ Reset</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <!-- METRICS -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Total Investment</div>
+      <div class="metric-value" id="m-invest">$0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Selling Price</div>
+      <div class="metric-value" id="m-sell">$0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total Costs</div>
+      <div class="metric-value" id="m-costs">$0</div>
+    </div>
+    <div class="metric-card highlight">
+      <div class="metric-label">Net Profit</div>
+      <div class="metric-value" id="m-profit">$0</div>
+    </div>
+  </div>
+
+  <!-- PROFIT BAR -->
+  <div class="profit-summary">
+    <div class="stat-pill">
+      <span class="slabel">Return on Investment</span>
+      <span class="sval" id="roi-val">0.0%</span>
+    </div>
+    <div class="stat-pill">
+      <span class="slabel">Profit Margin</span>
+      <span class="sval" id="margin-val">0.0%</span>
+    </div>
+    <div class="stat-pill">
+      <span class="slabel">Cost / Sell Ratio</span>
+      <span class="sval" id="ratio-val">—</span>
+    </div>
+    <div class="bar-wrap">
+      <div class="bar-track"><div class="bar-fill" id="profit-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- PURCHASE + HOLDING -->
+  <div class="sections-grid">
+    <div class="section-card">
+      <div class="section-head">
+        <div class="sec-num-title">
+          <span class="sec-num">01</span>
+          <span class="section-title">Purchase Costs</span>
+        </div>
+        <span class="section-total" id="t-purchase">$0</span>
+      </div>
+      <div class="table-header">
+        <span class="th">Inspection Item</span>
+        <span class="th right">Cost</span>
+      </div>
+      <div class="section-body" id="purchase-fields"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-head">
+        <div class="sec-num-title">
+          <span class="sec-num">02</span>
+          <span class="section-title">Holding Costs</span>
+        </div>
+        <span class="section-total" id="t-holding">$0</span>
+      </div>
+      <div class="table-header">
+        <span class="th">Inspection Item</span>
+        <span class="th right">Cost</span>
+      </div>
+      <div class="section-body" id="holding-fields"></div>
+    </div>
+  </div>
+
+  <!-- REHAB COSTS -->
+  <div class="sections-grid" style="margin-bottom:16px;">
+    <div class="section-card full">
+      <div class="section-head">
+        <div class="sec-num-title">
+          <span class="sec-num">03</span>
+          <span class="section-title">Rehab Costs</span>
+        </div>
+        <span class="section-total" id="t-rehab">$0</span>
+      </div>
+      <div class="rehab-cols">
+        <div class="rehab-col">
+          <div class="rehab-sub-title">Labor</div>
+          <div class="rehab-sub-sub-title">Interior</div>
+          <div class="compact-grid" id="labor-interior-fields"></div>
+          <div class="rehab-sub-sub-title">Exterior</div>
+          <div class="compact-grid" id="labor-exterior-fields"></div>
+          <div class="sub-total-row">
+            <span>Labor Total</span>
+            <span id="t-labor">$0</span>
+          </div>
+        </div>
+        <div class="rehab-col">
+          <div class="rehab-sub-title">Materials</div>
+          <div class="rehab-sub-sub-title">General</div>
+          <div class="compact-grid" id="mat-general-fields"></div>
+          <div class="rehab-sub-sub-title">Interior</div>
+          <div class="compact-grid" id="mat-interior-fields"></div>
+          <div class="rehab-sub-sub-title">Bathrooms</div>
+          <div class="compact-grid" id="mat-bath-fields"></div>
+          <div class="sub-total-row">
+            <span>Materials Total</span>
+            <span id="t-materials">$0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SELLING COSTS -->
+  <div class="sections-grid">
+    <div class="section-card full">
+      <div class="section-head">
+        <div class="sec-num-title">
+          <span class="sec-num">04</span>
+          <span class="section-title">Selling Costs</span>
+        </div>
+        <span class="section-total" id="t-selling">$0</span>
+      </div>
+      <div class="table-header">
+        <span class="th">Inspection Item</span>
+        <span class="th right">Cost</span>
+      </div>
+      <div class="section-body">
+        <div class="selling-grid" id="selling-fields"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">Rehab Analysis Calculator &mdash; All calculations are estimates only</div>
+</div>
+
+<script>
+const state = {};
+const fmt = v => '$' + Math.round(v).toLocaleString('en-US');
+const pct = v => (isFinite(v) ? v.toFixed(1) : '0.0') + '%';
+
+const PURCHASE = ['Purchase Price','Inspection(s)','Appraisal(s)','Down Payment','Lender Fees','Closing Costs','Referral Fee'];
+const HOLDING  = ['Mortgage Payments','Property Taxes','Insurance','Utilities','Lawn Care','Other'];
+const SELLING  = ['Selling Price','Commission To Agents','Buyer Home Warranty','Buyer Termite Letter',"Buyer's Closing Costs","Seller's Closing Costs"];
+const LABOR_INT = ['Demo','Interior Carpentry','Framing','Door Replacement','Window Replacement','Other Carpentry','Drywall Replacement & Repair','Plumbing Rough','Plumbing Finish','Electrical Rough','Electrical Finish','HVAC Rough','HVAC Finish','Painting','Carpet','Hardwood','Tile','Vinyl','Cabinet Installation','Countertop Installation','Appliances Installation','Trim Work','House Cleaning'];
+const LABOR_EXT = ['Roofing','Roof Maintenance','Roof Replacement','Soffits/Fascia','Gutters','Exterior Carpentry','Siding','Exterior Trim','Decks','Landscaping','Termite Inspection/Treatment','Garage Doors','Foundation/Structural'];
+const MAT_GEN  = ['Permits','Dumpster'];
+const MAT_INT  = ['Framing Lumber','Drywall','Electrical','Windows','Finish Electrical','Light Fixtures','Fan Fixtures','Finish Plumbing','Toilets','Sinks','Faucets','Flooring Tile','Carpet','Pad','Hardwood','Cleaning','Trim','Appliances','Cabinets','Countertops','Backsplash','Garbage Disposal'];
+const MAT_BATH = ['Vanities','Bath Hardware','Shower/Tub','Tile','Paint','Door Knobs/Deadbolts','Switches','Receptacles','Switch Plates','Outlet Covers','Mini Blinds'];
+
+function key(prefix, label) { return prefix + '_' + label.replace(/[^a-z0-9]/gi, '_'); }
+
+function makeField(prefix, label, container) {
+  const id = key(prefix, label);
+  const row = document.createElement('div');
+  row.className = 'field-row';
+  row.innerHTML = `<label class="field-label" for="${id}">${label}</label><div class="input-wrap"><span class="dollar-sign">$</span><input type="number" id="${id}" min="0" step="100" value="" placeholder="0"></div>`;
+  container.appendChild(row);
+  row.querySelector('input').addEventListener('input', e => { state[id] = parseFloat(e.target.value) || 0; recalc(); });
+  state[id] = 0;
+}
+
+function makeCompact(prefix, label, container) {
+  const id = key(prefix, label);
+  const wrap = document.createElement('div');
+  wrap.className = 'compact-field';
+  wrap.innerHTML = `<label class="compact-label" for="${id}" title="${label}">${label}</label><input type="number" id="${id}" min="0" step="100" value="" placeholder="0">`;
+  container.appendChild(wrap);
+  wrap.querySelector('input').addEventListener('input', e => { state[id] = parseFloat(e.target.value) || 0; recalc(); });
+  state[id] = 0;
+}
+
+function sum(prefix, labels) { return labels.reduce((a, l) => a + (state[key(prefix, l)] || 0), 0); }
+
+function recalc() {
+  const tPurchase = sum('p', PURCHASE);
+  const tHolding  = sum('h', HOLDING);
+  const tLaborInt = sum('li', LABOR_INT);
+  const tLaborExt = sum('le', LABOR_EXT);
+  const tLabor    = tLaborInt + tLaborExt;
+  const tMatGen   = sum('mg', MAT_GEN);
+  const tMatInt   = sum('mi', MAT_INT);
+  const tMatBath  = sum('mb', MAT_BATH);
+  const tMat      = tMatGen + tMatInt + tMatBath;
+  const tRehab    = tLabor + tMat;
+  const sellingPrice = state[key('s', 'Selling Price')] || 0;
+  const tSelling  = sum('s', SELLING) - sellingPrice;
+  const totalCosts = tPurchase + tHolding + tRehab + tSelling;
+  const profit = sellingPrice - totalCosts;
+  const roi    = tPurchase > 0 ? (profit / tPurchase) * 100 : 0;
+  const margin = sellingPrice > 0 ? (profit / sellingPrice) * 100 : 0;
+  const ratio  = sellingPrice > 0 ? totalCosts / sellingPrice : null;
+
+  setText('t-purchase',  fmt(tPurchase));
+  setText('t-holding',   fmt(tHolding));
+  setText('t-labor',     fmt(tLabor));
+  setText('t-materials', fmt(tMat));
+  setText('t-rehab',     fmt(tRehab));
+  setText('t-selling',   fmt(tSelling));
+  setText('m-invest',    fmt(totalCosts));
+  setText('m-sell',      fmt(sellingPrice));
+  setText('m-costs',     fmt(totalCosts));
+  setText('roi-val',     pct(roi));
+  setText('margin-val',  pct(margin));
+  setText('ratio-val',   ratio !== null ? ratio.toFixed(2) + 'x' : '—');
+
+  const profitEl = document.getElementById('m-profit');
+  profitEl.textContent = (profit < 0 ? '-' : '') + fmt(Math.abs(profit));
+  profitEl.className = 'metric-value';
+
+  const barPct = sellingPrice > 0 ? Math.min(100, Math.max(0, Math.abs(profit / sellingPrice) * 100)) : 0;
+  const bar = document.getElementById('profit-bar');
+  bar.style.width = barPct + '%';
+  bar.className = 'bar-fill' + (profit < 0 ? ' negative' : '');
+}
+
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+
+function resetAll() {
+  Object.keys(state).forEach(k => state[k] = 0);
+  document.querySelectorAll('input[type="number"]').forEach(inp => inp.value = '');
+  recalc();
+}
+
+function init() {
+  PURCHASE.forEach(l  => makeField('p',  l, document.getElementById('purchase-fields')));
+  HOLDING.forEach(l   => makeField('h',  l, document.getElementById('holding-fields')));
+  LABOR_INT.forEach(l => makeCompact('li', l, document.getElementById('labor-interior-fields')));
+  LABOR_EXT.forEach(l => makeCompact('le', l, document.getElementById('labor-exterior-fields')));
+  MAT_GEN.forEach(l   => makeCompact('mg', l, document.getElementById('mat-general-fields')));
+  MAT_INT.forEach(l   => makeCompact('mi', l, document.getElementById('mat-interior-fields')));
+  MAT_BATH.forEach(l  => makeCompact('mb', l, document.getElementById('mat-bath-fields')));
+  SELLING.forEach(l   => makeField('s',  l, document.getElementById('selling-fields')));
+  recalc();
+}
+
+init();
+</script>
+</body>
+</html>

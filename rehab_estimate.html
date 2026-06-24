@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rehab Estimate Spreadsheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --surface: #242424;
+    --surface2: #2e2e2e;
+    --border: #3a3a3a;
+    --accent: #e8b54a;
+    --accent2: #c9a03a;
+    --green: #4caf82;
+    --red: #e05c5c;
+    --text: #f0ece0;
+    --muted: #888;
+    --label: #b0a89a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Source Sans 3', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2209 100%);
+    border-bottom: 3px solid var(--accent);
+    padding: 28px 40px 22px;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  header .title-block h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  header .title-block p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  header .property-fields {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-left: auto;
+    align-items: flex-end;
+  }
+
+  .prop-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .prop-field label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .prop-field input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid var(--accent);
+    color: var(--text);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.9rem;
+    padding: 6px 10px;
+    width: 180px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .prop-field input:focus { border-color: var(--accent); }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  /* SECTION HEADERS */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 32px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-header .section-num {
+    background: var(--accent);
+    color: #111;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .section-header h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  /* TABLE */
+  .estimate-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .estimate-table thead tr {
+    background: var(--surface2);
+  }
+
+  .estimate-table th {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .estimate-table th.center { text-align: center; }
+  .estimate-table th.right { text-align: right; }
+
+  .estimate-table tbody tr {
+    border-bottom: 1px solid #2a2a2a;
+    transition: background 0.15s;
+  }
+
+  .estimate-table tbody tr:hover { background: rgba(232,181,74,0.04); }
+
+  .estimate-table td {
+    padding: 9px 12px;
+    font-size: 0.88rem;
+    vertical-align: middle;
+  }
+
+  .item-name {
+    color: var(--label);
+    font-weight: 400;
+  }
+
+  .hint {
+    font-size: 0.72rem;
+    color: #555;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  /* Radio checkboxes */
+  .check-cell {
+    text-align: center;
+  }
+
+  .radio-group {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .radio-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    font-size: 0.65rem;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    background: var(--surface);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .radio-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .radio-btn.yes.active { background: var(--green); border-color: var(--green); color: #fff; }
+  .radio-btn.no.active { background: var(--red); border-color: var(--red); color: #fff; }
+  .radio-btn.unk.active { background: #666; border-color: #666; color: #fff; }
+
+  /* Number input */
+  .num-input {
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px solid #3a3a3a;
+    color: var(--text);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.85rem;
+    width: 60px;
+    padding: 4px 4px;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .num-input:focus { border-color: var(--accent); }
+
+  /* Cost input */
+  .cost-cell { text-align: right; min-width: 110px; }
+
+  .cost-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .cost-wrap span { color: var(--muted); font-size: 0.85rem; }
+
+  .cost-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    width: 110px;
+    padding: 5px 8px;
+    text-align: right;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .cost-input:focus { border-color: var(--accent); }
+
+  /* ---- SUMMARY SECTION ---- */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 36px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+
+  .summary-card h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .summary-row label {
+    color: var(--label);
+    font-size: 0.9rem;
+  }
+
+  .summary-row .summary-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    width: 130px;
+    padding: 5px 8px;
+    text-align: right;
+    outline: none;
+  }
+
+  .summary-row .summary-input:focus { border-color: var(--accent); }
+
+  .summary-row.computed .summary-val {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.95rem;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 0.5px;
+  }
+
+  .total-repair-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: rgba(232,181,74,0.1);
+    border: 1px solid var(--accent);
+  }
+
+  .total-repair-row span {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .total-repair-row .total-val {
+    font-size: 1.4rem;
+    font-weight: 700;
+  }
+
+  .offer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding: 12px 16px;
+    background: rgba(76,175,130,0.1);
+    border: 1px solid var(--green);
+  }
+
+  .offer-row span {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+
+  .offer-row .offer-val {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--green);
+  }
+
+  /* Property details card */
+  .prop-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .detail-row label {
+    color: var(--label);
+    font-size: 0.85rem;
+    flex: 1;
+  }
+
+  .toggle-group {
+    display: flex;
+    gap: 4px;
+  }
+
+  .toggle-btn {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 0.5px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .toggle-btn.active { background: var(--accent); border-color: var(--accent); color: #111; font-weight: 600; }
+
+  /* Comments */
+  .comments-area {
+    margin-top: 24px;
+  }
+
+  .comments-area label {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .comments-area textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.88rem;
+    padding: 12px;
+    resize: vertical;
+    min-height: 70px;
+    outline: none;
+  }
+
+  .comments-area textarea:focus { border-color: var(--accent); }
+
+  /* Print / action buttons */
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    justify-content: flex-end;
+  }
+
+  .btn {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 24px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #111;
+    font-weight: 700;
+  }
+
+  .btn-primary:hover { background: var(--accent2); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Quick ref */
+  .quick-ref {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 20px 24px;
+    margin-top: 32px;
+  }
+
+  .quick-ref h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .quick-ref ul {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 6px 24px;
+  }
+
+  .quick-ref li {
+    font-size: 0.82rem;
+    color: var(--label);
+    padding: 3px 0;
+    border-bottom: 1px solid #2a2a2a;
+  }
+
+  .quick-ref li strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  @media print {
+    body { background: #fff; color: #111; }
+    .actions { display: none; }
+    .btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <h1>Rehab Estimate</h1>
+    <p>Property Inspection &amp; Repair Cost Analysis</p>
+  </div>
+  <div class="property-fields">
+    <div class="prop-field">
+      <label>Property Address</label>
+      <input type="text" id="prop-address" placeholder="123 Main St">
+    </div>
+    <div class="prop-field">
+      <label>City / State</label>
+      <input type="text" id="prop-city" placeholder="City, ST">
+    </div>
+    <div class="prop-field">
+      <label>Date</label>
+      <input type="date" id="prop-date">
+    </div>
+    <div class="prop-field">
+      <label>Sq Ft (Living)</label>
+      <input type="number" id="prop-sqft" placeholder="1500" oninput="recalc()">
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ==================== EXTERIOR ==================== -->
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <h2>Exterior</h2>
+  </div>
+
+  <table class="estimate-table">
+    <thead>
+      <tr>
+        <th style="width:34%">Inspection Item</th>
+        <th class="center" style="width:8%">Yes</th>
+        <th class="center" style="width:8%">No</th>
+        <th class="center" style="width:8%">Unk</th>
+        <th class="center" style="width:8%"># Units</th>
+        <th style="width:24%">Cost Reference</th>
+        <th class="right" style="width:10%">Repair Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="item-name">1. Chimney Repair/Replacement?<div class="hint">Repoint $500 | Rebuild $1,000–$5,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Repoint $500 · Rebuild $1,000–$5,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">2. Roof Repair/Replacement?<div class="hint">Single: $5,000–$8,000 or $275–$350/sq (100 sqft)</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$5,000–$8,000 · $275–$350/square</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">3. Exterior Paint/Siding?<div class="hint">Paint: $3,000–$5,000 · Siding: $6,000–$8,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Paint: $3,000–$5,000 · Siding: $6,000–$8,000 ($275–$500/sq)</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">4. Windows Repair/Replacement?<div class="hint">$325–$500 ea. · Bay: $1,000–$2,000 · Repair: $25–$100</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$325–$500 ea. · Bay: $1,000–$2,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">5. Exterior Doors?<div class="hint">$250–$400 each</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$250–$400 each</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">6. Garage Repair/Replacement?<div class="hint">Door: $650 · Reframe: $1,500 · Int. Paint 1-car: $500 / 2-car: $1,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Door $650 · Reframe $1,500 · Int paint $500/$1,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">7. Driveway Repair/Replacement?<div class="hint">$2,500–$5,000 avg · $4–$6/sq.ft.</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$2,500–$5,000 · $4–$6/sq.ft.</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">8. Yard/Landscaping?<div class="hint">$300–$5,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$300–$5,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">9. Fence Repair/Replacement?<div class="hint">$100–$150 per section</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$100–$150 per section</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">31. Deck?<div class="hint">10×10 = $2,000 · 15×15 = $3,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">10×10 = $2,000 · 15×15 = $3,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- ==================== STRUCTURAL / MECHANICAL ==================== -->
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <h2>Structural &amp; Mechanical</h2>
+  </div>
+
+  <table class="estimate-table">
+    <thead>
+      <tr>
+        <th style="width:34%">Inspection Item</th>
+        <th class="center" style="width:8%">Yes</th>
+        <th class="center" style="width:8%">No</th>
+        <th class="center" style="width:8%">Unk</th>
+        <th class="center" style="width:8%"># Units</th>
+        <th style="width:24%">Cost Reference</th>
+        <th class="right" style="width:10%">Repair Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="item-name">10. Septic Repair/Replacement?<div class="hint">$5,000–$20,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$5,000–$20,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">11a. Heating/Furnace?<div class="hint">Furnace: $3,000 · Boiler: $4,000 · FHW 1–2 Zone: $7,000–$10,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Furnace $3,000 · Boiler $4,000 · FHW $7k–$10k</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">11b. Hot Water Heater?<div class="hint">$800–$1,200</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$800–$1,200</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">12. Plumbing?<div class="hint">Rough: $1,000–$5,000 · Per fixture: $800–$1,500</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Rough $1k–$5k · Per fixture $800–$1,500</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">13. Electrical?<div class="hint">New panel: $1,000–$1,500 · Full rewire: $5,000–$10,000</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Panel $1k–$1.5k · Fixtures $400–$1k · Full rewire $5k–$10k</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">14. Foundation?<div class="hint">$50–$150 per linear foot</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$50–$150 per linear foot</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">15. Basement Structure?<div class="hint">Concrete floor: $1–$3/sqft · Stairwell: $1,000–$2,000 · Lally column: $100–$200 · LVL: $10–$20/lin.ft.</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Floor $1–$3/sqft · Stairs $1k–$2k · Lally $100–$200</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">18. Framing?<div class="hint">$500–$5,000 depending on scope</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$500–$5,000</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">26. Insulation?<div class="hint">Attic/Basement: $1–$1.50/sqft · Wall: $0.50–$1/sqft</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Attic/Basement $1–$1.50/sqft · Wall $0.50–$1/sqft</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- ==================== INTERIOR ==================== -->
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <h2>Interior</h2>
+  </div>
+
+  <table class="estimate-table">
+    <thead>
+      <tr>
+        <th style="width:34%">Inspection Item</th>
+        <th class="center" style="width:8%">Yes</th>
+        <th class="center" style="width:8%">No</th>
+        <th class="center" style="width:8%">Unk</th>
+        <th class="center" style="width:8%"># Units</th>
+        <th style="width:24%">Cost Reference</th>
+        <th class="right" style="width:10%">Repair Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="item-name">16. Interior Doors?<div class="hint">$125–$200 each</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$125–$200 each</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">17. Closet Shelving?<div class="hint">$50–$100 per closet</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$50–$100 per closet</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">19. Interior Trim?<div class="hint">$2–$4 per linear foot</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$2–$4 per linear foot</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">20. Interior Paint?<div class="hint">~$2/sqft living space · 1,500 sqft ≈ $2,800</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">~$2/sqft · 1,500 sqft ≈ $2,800</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">29. Sheetrock/Drywall?<div class="hint">Patches: $1–$2/sqft · Skim coat: $0.50–$1/sqft · New: $1.10–$1.50/sqft</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Patches $1–$2/sqft · New $1.10–$1.50/sqft</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- ==================== FLOORING ==================== -->
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <h2>Flooring</h2>
+  </div>
+
+  <table class="estimate-table">
+    <thead>
+      <tr>
+        <th style="width:34%">Inspection Item</th>
+        <th class="center" style="width:8%">Yes</th>
+        <th class="center" style="width:8%">No</th>
+        <th class="center" style="width:8%">Unk</th>
+        <th class="center" style="width:8%"># Units</th>
+        <th style="width:24%">Cost Reference</th>
+        <th class="right" style="width:10%">Repair Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="item-name">21. Carpet?<div class="hint">$2–$4 per sq.ft.</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$2–$4/sq.ft.</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">22. Laminate/Vinyl?<div class="hint">$3–$6 per sq.ft.</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$3–$6/sq.ft.</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">23. Tile?<div class="hint">$5–$10 per sq.ft.</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$5–$10/sq.ft.</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">24. Hardwood Sand/Install?<div class="hint">Install: $6–$10/sqft · Sand &amp; Refinish: $1.25–$2/sqft</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Install $6–$10/sqft · Sand/Refinish $1.25–$2/sqft</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- ==================== KITCHEN & BATH ==================== -->
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <h2>Kitchen &amp; Bath</h2>
+  </div>
+
+  <table class="estimate-table">
+    <thead>
+      <tr>
+        <th style="width:34%">Inspection Item</th>
+        <th class="center" style="width:8%">Yes</th>
+        <th class="center" style="width:8%">No</th>
+        <th class="center" style="width:8%">Unk</th>
+        <th class="center" style="width:8%"># Units</th>
+        <th style="width:24%">Cost Reference</th>
+        <th class="right" style="width:10%">Repair Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="item-name">25. Kitchen Cabinets/Counters?<div class="hint">$2,500–$6,500 single family</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$2,500–$6,500</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">27. Kitchen Appliances?<div class="hint">Stove: $500–$1k · Fridge: $800–$1.5k · Microwave: $300–$500 · Dishwasher: $350–$700</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">Stove $500–$1k · Fridge $800–$1.5k · DW $350–$700</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">28a. Shower?<div class="hint">$600–$2,000 + install $500</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$600–$2,000 + install $500</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">28b. Toilet?<div class="hint">$75–$200 + install $150</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$75–$200 + install $150</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">28c. Vanity/Sink?<div class="hint">$150–$600 + install $300</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$150–$600 + install $300</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">28d. Bath Accessories?<div class="hint">Mirror, towel bars, etc.: $100–$300</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$100–$300</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- ==================== OTHER ==================== -->
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <h2>Other &amp; Miscellaneous</h2>
+  </div>
+
+  <table class="estimate-table">
+    <thead>
+      <tr>
+        <th style="width:34%">Inspection Item</th>
+        <th class="center" style="width:8%">Yes</th>
+        <th class="center" style="width:8%">No</th>
+        <th class="center" style="width:8%">Unk</th>
+        <th class="center" style="width:8%"># Units</th>
+        <th style="width:24%">Cost Reference</th>
+        <th class="right" style="width:10%">Repair Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <tr>
+        <td class="item-name">30. Dumpsters/Demo?<div class="hint">Dumpster: $500 ea. · Demo labor: $500/filled dumpster</div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">$500 ea. + $500/dumpster demo labor</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">32a. Other (custom):
+          <input type="text" placeholder="Describe…" style="background:transparent;border:none;border-bottom:1px solid #444;color:var(--text);font-size:0.82rem;width:180px;outline:none;margin-top:4px;">
+        </td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">—</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <tr>
+        <td class="item-name">32b. Other (custom):
+          <input type="text" placeholder="Describe…" style="background:transparent;border:none;border-bottom:1px solid #444;color:var(--text);font-size:0.82rem;width:180px;outline:none;margin-top:4px;">
+        </td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn yes" onclick="toggleCheck(this,'y')">Y</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn no" onclick="toggleCheck(this,'n')">N</span></div></td>
+        <td class="check-cell"><div class="radio-group"><span class="radio-btn unk" onclick="toggleCheck(this,'u')">?</span></div></td>
+        <td class="check-cell"><input class="num-input" type="number" min="0" value="" oninput="recalc()"></td>
+        <td style="font-size:0.75rem;color:#555">—</td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" min="0" value="0" oninput="recalc()"></div></td>
+      </tr>
+
+      <!-- Misc auto row -->
+      <tr style="background:rgba(232,181,74,0.05)">
+        <td class="item-name">33. Miscellaneous (10% of subtotal)<div class="hint">Automatically calculated</div></td>
+        <td colspan="5"></td>
+        <td class="cost-cell"><div class="cost-wrap"><span>$</span><input class="cost-input" type="number" id="misc-cost" value="0" readonly style="opacity:0.7;cursor:default;"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- TOTALS + DEAL ANALYSIS -->
+  <div class="summary-grid">
+
+    <!-- LEFT: TOTALS -->
+    <div class="summary-card">
+      <h3>Cost Summary</h3>
+
+      <div class="total-repair-row">
+        <span>Total Repair Cost</span>
+        <span class="total-val" id="total-repair">$0</span>
+      </div>
+
+      <div style="height:16px"></div>
+
+      <div class="summary-row">
+        <label>After Repair Value (ARV)</label>
+        <input class="summary-input" type="number" id="arv" min="0" value="" placeholder="0" oninput="recalc()">
+      </div>
+      <div class="summary-row">
+        <label>Closing &amp; Holding Costs</label>
+        <input class="summary-input" type="number" id="closing" min="0" value="" placeholder="0" oninput="recalc()">
+      </div>
+      <div class="summary-row computed">
+        <label>Repairs</label>
+        <span class="summary-val" id="sum-repairs">$0</span>
+      </div>
+      <div class="summary-row">
+        <label>Desired Profit</label>
+        <input class="summary-input" type="number" id="profit" min="0" value="" placeholder="0" oninput="recalc()">
+      </div>
+
+      <div class="offer-row">
+        <span>Offer Price</span>
+        <span class="offer-val" id="offer-price">$0</span>
+      </div>
+    </div>
+
+    <!-- RIGHT: PROPERTY DETAILS -->
+    <div class="summary-card">
+      <h3>Property Details</h3>
+      <div class="prop-details">
+
+        <div class="detail-row">
+          <label>Heating System</label>
+          <div class="toggle-group">
+            <span class="toggle-btn" onclick="toggle(this)">Boiler</span>
+            <span class="toggle-btn" onclick="toggle(this)">Furnace</span>
+          </div>
+        </div>
+
+        <div class="detail-row">
+          <label>Heating Fuel</label>
+          <div class="toggle-group">
+            <span class="toggle-btn" onclick="toggle(this)">Gas</span>
+            <span class="toggle-btn" onclick="toggle(this)">Oil</span>
+          </div>
+        </div>
+
+        <div class="detail-row">
+          <label>In-Ground Oil Tank</label>
+          <div class="toggle-group">
+            <span class="toggle-btn" onclick="toggle(this)">Yes</span>
+            <span class="toggle-btn" onclick="toggle(this)">No</span>
+          </div>
+        </div>
+
+        <div class="detail-row">
+          <label>Water</label>
+          <div class="toggle-group">
+            <span class="toggle-btn" onclick="toggle(this)">City</span>
+            <span class="toggle-btn" onclick="toggle(this)">Well</span>
+          </div>
+        </div>
+
+        <div class="detail-row">
+          <label>Sewer</label>
+          <div class="toggle-group">
+            <span class="toggle-btn" onclick="toggle(this)">City</span>
+            <span class="toggle-btn" onclick="toggle(this)">Septic</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="comments-area" style="margin-top:20px">
+        <label>Comments</label>
+        <textarea id="comments" placeholder="Notes, observations, conditions…"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK REFERENCE GUIDE -->
+  <div class="quick-ref">
+    <h3>Quick Reference Estimates</h3>
+    <ul>
+      <li><strong>General Rehab</strong> — $20 per sq.ft.</li>
+      <li><strong>Roof</strong> — $5 per sq.ft. (excludes shake removal)</li>
+      <li><strong>Windows</strong> — $300/window · $900/slider</li>
+      <li><strong>HVAC</strong> — $6,000 (new ducting) · $5,000 (existing ducting)</li>
+      <li><strong>Electrical</strong> — $5,000 rewire + new panel</li>
+      <li><strong>Water Heater</strong> — $1,000</li>
+    </ul>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+    <button class="btn btn-primary" onclick="window.print()">Print / Export PDF</button>
+  </div>
+
+</div>
+
+<script>
+  // Set today's date
+  document.getElementById('prop-date').valueAsDate = new Date();
+
+  function toggleCheck(btn, type) {
+    const row = btn.closest('tr');
+    // Each row has 3 separate radio-group cells (Y/N/?)
+    // Deactivate everything in this row
+    row.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function toggle(btn) {
+    const group = btn.closest('.toggle-group');
+    group.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function fmt(n) {
+    return '$' + Math.round(n).toLocaleString('en-US');
+  }
+
+  function recalc() {
+    const inputs = document.querySelectorAll('.cost-input:not(#misc-cost)');
+    let subtotal = 0;
+    inputs.forEach(i => {
+      subtotal += parseFloat(i.value) || 0;
+    });
+
+    const misc = subtotal * 0.10;
+    document.getElementById('misc-cost').value = Math.round(misc);
+    const total = subtotal + misc;
+
+    document.getElementById('total-repair').textContent = fmt(total);
+    document.getElementById('sum-repairs').textContent = fmt(total);
+
+    const arv = parseFloat(document.getElementById('arv').value) || 0;
+    const closing = parseFloat(document.getElementById('closing').value) || 0;
+    const profit = parseFloat(document.getElementById('profit').value) || 0;
+
+    const offer = arv - closing - total - profit;
+    document.getElementById('offer-price').textContent = fmt(Math.max(0, offer));
+  }
+
+  function clearAll() {
+    if (!confirm('Clear all entered values?')) return;
+    document.querySelectorAll('.cost-input').forEach(i => i.value = 0);
+    document.querySelectorAll('.num-input').forEach(i => i.value = '');
+    document.querySelectorAll('.radio-btn, .toggle-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('arv').value = '';
+    document.getElementById('closing').value = '';
+    document.getElementById('profit').value = '';
+    document.getElementById('comments').value = '';
+    document.getElementById('prop-address').value = '';
+    document.getElementById('prop-city').value = '';
+    document.getElementById('prop-sqft').value = '';
+    recalc();
+  }
+</script>
+</body>
+</html>
