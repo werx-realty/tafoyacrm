@@ -836,7 +836,22 @@
     <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" />
     <button class="btn-primary" onclick="doLogin()">Sign In</button>
     <div class="login-error" id="login-error" style="display:none"></div>
+    <div id="login-msg" style="color:var(--green);font-size:13px;margin-top:10px;display:none"></div>
+    <div class="login-hint" style="cursor:pointer;text-decoration:underline" onclick="doForgot()">Forgot your password?</div>
     <div class="login-hint">Authorized access only</div>
+  </div>
+</div>
+
+<!-- ── SET NEW PASSWORD (from the reset email link) ── -->
+<div id="reset-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:10000;align-items:center;justify-content:center">
+  <div class="login-box">
+    <div class="login-logo">🔑</div>
+    <h1>Set a new password</h1>
+    <p>Choose a new password for your CRM login</p>
+    <input type="password" id="reset-pw1" placeholder="New password" autocomplete="new-password" />
+    <input type="password" id="reset-pw2" placeholder="Confirm new password" autocomplete="new-password" onkeydown="if(event.key==='Enter')doResetPassword()" />
+    <button class="btn-primary" onclick="doResetPassword()">Save Password</button>
+    <div class="login-error" id="reset-error" style="display:none"></div>
   </div>
 </div>
 
@@ -891,6 +906,7 @@
         <div class="topbar-title" id="view-title">All Leads</div>
         <div class="topbar-right">
           <button class="add-btn" id="top-add-btn" onclick="topAddClick()">+ Add Lead</button>
+          <button class="logout-btn" onclick="openChangePassword()">Change Password</button>
           <button class="logout-btn" onclick="logout()">Sign Out</button>
         </div>
       </div>
@@ -1154,11 +1170,11 @@
         </div>
       </div>
       <!-- PHONEBOOK -->
-      <div id="admin-view" style="display:none">
+      <div id="admin-view" style="display:none;padding:28px 40px">
         <div style="max-width:760px">
           <h2 style="font-size:18px;font-weight:700;margin-bottom:4px">Admin &amp; Users</h2>
           <p style="color:var(--muted);font-size:13px;margin-bottom:24px">Add or remove people who can log into this CRM.</p>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:24px">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;margin-bottom:24px">
             <div style="font-weight:600;margin-bottom:14px">Add a user</div>
             <input id="au-email" type="email" placeholder="Email" style="width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--faint);border-radius:9px;color:var(--text);font-size:14px;margin-bottom:10px;outline:none" />
             <input id="au-password" type="text" placeholder="Temporary password" style="width:100%;padding:11px 14px;background:var(--surface);border:1px solid var(--faint);border-radius:9px;color:var(--text);font-size:14px;margin-bottom:10px;outline:none" />
@@ -1169,7 +1185,7 @@
             <button class="btn-primary" style="width:auto;padding:11px 22px" onclick="adminAddUser()">Add User</button>
             <div id="au-msg" style="font-size:13px;margin-top:12px"></div>
           </div>
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px">
             <div style="font-weight:600;margin-bottom:14px">Current users</div>
             <div id="au-list" style="font-size:14px">Loading…</div>
           </div>
@@ -1587,19 +1603,40 @@
   const SUPABASE_URL = 'https://bovhpvqtiocfhpzjgbab.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvdmhwdnF0aW9jZmhwempnYmFiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDQ1MTQsImV4cCI6MjA5Nzg4MDUxNH0.rVith5a5b2gTzMJf-aSoEi0tW9xLh0ussoDF70ywPgE';
   let SB_TOKEN = null;
+  const AUTH_DISABLED = false; // login required
+  const LOCAL_ONLY = false;  // live: leads come from Supabase
+  // localStorage that can never blow up the app (quota errors are non-fatal)
+  function lsSet(key, val){
+    try { localStorage.setItem(key, val); return true; }
+    catch(e){
+      console.warn('[CRM] localStorage full, dropping cache for', key);
+      try { purgeLegacyPhotoKeys(); localStorage.setItem(key, val); return true; } catch(e2){ return false; }
+    }
+  }
+  // Photos live in IndexedDB now — clear any base64 left behind in localStorage by old versions
+  function purgeLegacyPhotoKeys(){
+    try {
+      var kill=[];
+      for (var i=0;i<localStorage.length;i++){
+        var k=localStorage.key(i);
+        if (k && (k.indexOf('photo_')===0 || k.indexOf('tafoy_photos')===0 || k.indexOf('docs_')===0)) kill.push(k);
+      }
+      kill.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    } catch(e){}
+  }
   let CURRENT_ROLE='agent', CURRENT_WORKSPACE='shared';
   var _arTimer=null;
-  function startAutoRefresh(){ if(_arTimer) return; _arTimer=setInterval(autoRefreshLeads, 15000); }
+  function startAutoRefresh(){ if(LOCAL_ONLY) return; if(_arTimer) return; _arTimer=setInterval(autoRefreshLeads, 15000); }
   function autoRefreshLeads(){
-    if(!SB_TOKEN) return;
+    if(LOCAL_ONLY) return;
     var vm=document.getElementById('view-modal');
     if(vm && vm.classList.contains('open')) return; // don't disrupt editing
     fetch(SUPABASE_URL + '/rest/v1/leads?select=*&order=created_at.desc', { headers: sbHeaders() })
       .then(function(r){ if(r.status===401){ return null; } return r.json(); })
       .then(function(data){
-        if(!Array.isArray(data)) return;
+        if(!Array.isArray(data) || !data.length) return; // keep local leads
         leads = data;
-        try { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); } catch(e){}
+        lsSet('tafoy_leads', JSON.stringify(leads));
         renderLeads(); renderStats(); renderSidebar();
         var dv=document.getElementById('dashboard-view'); if(dv && dv.style.display!=='none' && typeof dashFill==='function') dashFill();
         var pv=document.getElementById('pipeline-view'); if(pv && pv.style.display!=='none' && typeof renderKanban==='function') renderKanban();
@@ -1653,6 +1690,7 @@
     return hd;
   }
   function handleAuthFail(){
+    if(AUTH_DISABLED){ console.warn('[CRM] 401 from Supabase (auth disabled, using anon key)'); return; }
     try { localStorage.removeItem('sb_token'); } catch(e){}
     SB_TOKEN = null;
     var a=document.getElementById('app'); if(a) a.style.display='none';
@@ -1676,13 +1714,130 @@
       initPhotos(function(){ loadLeads(); startAutoRefresh(); });
     }catch(e){ errEl.textContent=e.message; errEl.style.display='block'; }
   }
+  // ── PASSWORD RESET ──
+  function doForgot(){
+    var email=(document.getElementById('login-email').value||'').trim();
+    var errEl=document.getElementById('login-error');
+    var msgEl=document.getElementById('login-msg');
+    errEl.style.display='none'; msgEl.style.display='none';
+    if(!email){ errEl.textContent='Enter your email above first, then click Forgot your password.'; errEl.style.display='block'; return; }
+    var redirect = location.origin + location.pathname;
+    fetch(SUPABASE_URL+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirect),{
+      method:'POST',
+      headers:{'apikey':SUPABASE_ANON,'Content-Type':'application/json'},
+      body:JSON.stringify({email:email})
+    }).then(function(){
+      msgEl.textContent='Check your email — we sent you a link to set a new password.';
+      msgEl.style.display='block';
+    }).catch(function(e){
+      errEl.textContent='Could not send the reset email: '+e.message; errEl.style.display='block';
+    });
+  }
+  var RESET_TOKEN=null;
+  function showResetScreen(token){
+    RESET_TOKEN = token;
+    document.getElementById('login-screen').style.display='none';
+    var a=document.getElementById('app'); if(a) a.style.display='none';
+    document.getElementById('reset-screen').style.display='flex';
+  }
+  // Logged-in users can change their own password — no email needed
+  function openChangePassword(){
+    if(!SB_TOKEN){ alert('Please sign in first.'); return; }
+    showResetScreen(SB_TOKEN);
+  }
+  function parseKV(str){
+    var out={};
+    (str||'').replace(/^[#?]/,'').split('&').forEach(function(kv){
+      if(!kv) return;
+      var i=kv.indexOf('='); var k=i<0?kv:kv.slice(0,i); var v=i<0?'':kv.slice(i+1);
+      out[decodeURIComponent(k)]=decodeURIComponent(v.replace(/\+/g,' '));
+    });
+    return out;
+  }
+  // Handles every shape of recovery link Supabase sends
+  function checkRecoveryLink(){
+    var h = parseKV(location.hash);
+    var q = parseKV(location.search);
+
+    // a) implicit flow: #access_token=...&type=recovery
+    if (h.access_token && (h.type === 'recovery' || !h.type)) {
+      history.replaceState(null,'',location.pathname);
+      showResetScreen(h.access_token);
+      return true;
+    }
+    // b) error came back in the hash
+    if (h.error_description || q.error_description) {
+      var why = h.error_description || q.error_description;
+      history.replaceState(null,'',location.pathname);
+      setTimeout(function(){
+        var e=document.getElementById('login-error');
+        if(e){ e.textContent = 'That reset link is expired — just sign in below.'; e.style.display='block'; }
+        console.warn('[CRM] reset link:', why);
+      }, 0);
+      return false; // fall through to the normal login screen
+    }
+    // c) token_hash flow: ?token_hash=...&type=recovery  → verify to get a session
+    if (q.token_hash && q.type === 'recovery') {
+      history.replaceState(null,'',location.pathname);
+      fetch(SUPABASE_URL+'/auth/v1/verify',{
+        method:'POST',
+        headers:{'apikey':SUPABASE_ANON,'Content-Type':'application/json'},
+        body:JSON.stringify({type:'recovery', token_hash:q.token_hash})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d && d.access_token){ showResetScreen(d.access_token); }
+        else { location.href = location.pathname; }
+      }).catch(function(){ location.href = location.pathname; });
+      return true;
+    }
+    // d) old-style: ?token=...&type=recovery  → let Supabase verify and bounce back
+    if (q.token && q.type === 'recovery') {
+      location.href = SUPABASE_URL + '/auth/v1/verify?token=' + encodeURIComponent(q.token)
+        + '&type=recovery&redirect_to=' + encodeURIComponent(location.origin + location.pathname);
+      return true;
+    }
+    // e) PKCE flow: ?code=...
+    if (q.code) {
+      history.replaceState(null,'',location.pathname);
+      fetch(SUPABASE_URL+'/auth/v1/token?grant_type=pkce',{
+        method:'POST',
+        headers:{'apikey':SUPABASE_ANON,'Content-Type':'application/json'},
+        body:JSON.stringify({auth_code:q.code})
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d && d.access_token){ showResetScreen(d.access_token); }
+        else { location.href = location.pathname; }
+      }).catch(function(){ location.reload(); });
+      return true;
+    }
+    return false;
+  }
+  function doResetPassword(){
+    var p1=document.getElementById('reset-pw1').value||'';
+    var p2=document.getElementById('reset-pw2').value||'';
+    var errEl=document.getElementById('reset-error');
+    errEl.style.display='none';
+    if(p1.length<6){ errEl.textContent='Password must be at least 6 characters.'; errEl.style.display='block'; return; }
+    if(p1!==p2){ errEl.textContent='The two passwords do not match.'; errEl.style.display='block'; return; }
+    fetch(SUPABASE_URL+'/auth/v1/user',{
+      method:'PUT',
+      headers:{'apikey':SUPABASE_ANON,'Authorization':'Bearer '+RESET_TOKEN,'Content-Type':'application/json'},
+      body:JSON.stringify({password:p1})
+    }).then(function(r){ return r.json().then(function(d){ return {ok:r.ok,d:d}; }); })
+      .then(function(res){
+        if(!res.ok){ throw new Error((res.d&&(res.d.msg||res.d.error_description||res.d.message))||'Could not update password'); }
+        alert('Password updated. Please sign in with your new password.');
+        try{ localStorage.removeItem('sb_token'); }catch(e){}
+        location.href = location.pathname;
+      })
+      .catch(function(e){ errEl.textContent=e.message; errEl.style.display='block'; });
+  }
+
   function sbUpdateLead(l){
-    if(!SB_TOKEN) return;
+    if(LOCAL_ONLY) return;
     var payload={name:l.name,email:l.email,phone:l.phone,property_address:l.property_address,ownership:l.ownership,timeline:l.timeline,property_type:l.property_type,condition:l.condition,reason:l.reason,mortgage:l.mortgage,price_range:l.price_range,status:l.status};
     fetch(SUPABASE_URL+'/rest/v1/leads?id=eq.'+encodeURIComponent(l.id),{method:'PATCH',headers:sbHeaders({'Prefer':'return=minimal'}),body:JSON.stringify(payload)}).then(function(r){if(!r.ok)r.text().then(function(t){console.warn('[CRM] update failed',r.status,t);});}).catch(function(e){console.warn('[CRM] update err',e);});
   }
   function sbDeleteLead(id){
-    if(!SB_TOKEN) return;
+    if(LOCAL_ONLY) return;
     fetch(SUPABASE_URL+'/rest/v1/leads?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:sbHeaders({'Prefer':'return=minimal'})}).then(function(r){if(!r.ok)r.text().then(function(t){console.warn('[CRM] delete failed',r.status,t);});}).catch(function(e){console.warn('[CRM] delete err',e);});
   }
   let leads = [];
@@ -1750,6 +1905,19 @@
     return photoCache['photo_' + id] || null;
   }
 
+  // Thumbnail for the leads table: main photo, else the first image attached in the drawer
+  function getRowThumb(id) {
+    var main = getPhoto(id);
+    if (main) return main;
+    var docs = docCache[String(id)] || [];
+    for (var i = 0; i < docs.length; i++) {
+      var d = docs[i];
+      if (d && d.type && d.type.indexOf('image/') === 0 && d.data) return d.data;
+      if (d && d.data && String(d.data).indexOf('data:image/') === 0) return d.data;
+    }
+    return null;
+  }
+
   function deletePhoto(id) {
     var key = 'photo_' + id;
     delete photoCache[key];
@@ -1763,23 +1931,32 @@
   function logout() { try{localStorage.removeItem('sb_token');}catch(e){} location.reload(); }
 
   // ── DATA ──
+  var DUMMY_LEADS = [
+    { id: 9001, name: 'Ramon Delgado', email: 'ramon.delgado@gmail.com', phone: '559-283-4471', property_address: '2148 E Clinton Ave, Fresno, CA 93703', ownership: '10+ years', timeline: 'ASAP', property_type: 'SFR', condition: 'Needs Work', reason: 'Job Relocation', mortgage: 'Has mortgage', price_range: '$225k-$255k', status: 'New', notes: 'Inherited from father, wants a fast cash close. Best reached after 5pm.', source: 'website', workspace: 'shared', created_at: new Date().toISOString() },
+    { id: 9002, name: 'Angela Brooks', email: 'a.brooks82@yahoo.com', phone: '559-770-1136', property_address: '5512 N Marks Ave, Fresno, CA 93711', ownership: '5-10 years', timeline: '30-60 days', property_type: 'SFR', condition: 'Good', reason: 'Downsizing', mortgage: 'Has mortgage', price_range: '$310k-$340k', status: 'Contacted', notes: 'Spoke 8/28 - comparing agents, wants a CMA before listing.', source: 'website', workspace: 'shared', created_at: new Date(Date.now()-86400000).toISOString() },
+    { id: 9003, name: 'Victor Nguyen', email: 'victor.nguyen.re@gmail.com', phone: '559-441-9028', property_address: '1077 W Ashlan Ave, Clovis, CA 93612', ownership: '1-5 years', timeline: '60-90 days', property_type: 'Duplex / Multi', condition: 'Fair', reason: 'Tired Landlord', mortgage: 'No mortgage', price_range: '$400k-$450k', status: 'Offer Made', notes: 'Both units rented month-to-month. Offered $412k, waiting on response.', source: 'website', workspace: 'shared', created_at: new Date(Date.now()-259200000).toISOString() }
+  ];
+  function seedLeads(){
+    var stored=null;
+    try { stored = JSON.parse(localStorage.getItem('tafoy_leads')||'null'); } catch(e){}
+    leads = (stored && stored.length) ? stored : DUMMY_LEADS.slice();
+    lsSet('tafoy_leads', JSON.stringify(leads));
+    renderLeads(); renderStats(); renderSidebar();
+  }
   function loadLeads() {
+    if (LOCAL_ONLY) { seedLeads(); return; }
     fetch(SUPABASE_URL + '/rest/v1/leads?select=*&order=created_at.desc', { headers: sbHeaders() })
       .then(function(r){ if(r.status===401){ handleAuthFail(); return null; } return r.json(); })
       .then(function(data){
-        if(!data) return;
-        if(!Array.isArray(data)){ console.warn('[CRM] leads load unexpected', data); return; }
+        if(!data || !Array.isArray(data) || !data.length) return;
         leads = data;
-        try { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); } catch(e){}
+        lsSet('tafoy_leads', JSON.stringify(leads));
         renderLeads(); renderStats(); renderSidebar();
       })
-      .catch(function(e){
-        console.warn('[CRM] loadLeads error', e);
-        var raw=null; try{ raw=localStorage.getItem('tafoy_leads'); }catch(_){}
-        if(raw){ leads=JSON.parse(raw); renderLeads(); renderStats(); renderSidebar(); }
-      });
+      .catch(function(e){ renderLeads(); renderStats(); renderSidebar(); });
   }
-  function saveLeads() { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); }
+
+  function saveLeads() { lsSet('tafoy_leads', JSON.stringify(leads)); }
 
   function getSampleLeads() {
     return [
@@ -1806,7 +1983,7 @@
       return;
     }
     tbody.innerHTML = filtered.map(l => {
-      var photo = getPhoto(l.id);
+      var photo = getRowThumb(l.id);
       var photoCell = photo
         ? `<td style="padding:8px 8px 8px 16px"><img id="row-photo-${l.id}" class="row-photo" src="${photo}" /></td>`
         : `<td style="padding:8px 8px 8px 16px"><div id="row-photo-${l.id}" class="row-photo-placeholder">🏠</div></td>`;
@@ -2540,21 +2717,11 @@
   // ── ADD LEAD — creates blank lead and opens the same drawer ──
   function openAddModal() {
     var blank = { name:'', email:'', phone:'', property_address:'', property_type:'', condition:'', ownership:'', timeline:'', reason:'', mortgage:'', price_range:'', status:'New', workspace: CURRENT_WORKSPACE };
-    if(!SB_TOKEN){
-      var nl = Object.assign({ id: Date.now(), notes:'', created_at: new Date().toISOString() }, blank);
-      leads.unshift(nl); saveLeads(); renderLeads(); renderStats(); renderSidebar(); openLead(nl.id); return;
-    }
-    fetch(SUPABASE_URL + '/rest/v1/leads', { method:'POST', headers: sbHeaders({'Prefer':'return=representation'}), body: JSON.stringify(blank) })
-      .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, status:r.status, d:d }; }); })
-      .then(function(res){
-        if(!res.ok){ console.warn('[CRM] add failed', res.status, res.d); alert('Could not add lead: ' + ((res.d&&res.d.message)||res.status)); return; }
-        var row = Array.isArray(res.d) ? res.d[0] : res.d;
-        leads.unshift(row);
-        try { localStorage.setItem('tafoy_leads', JSON.stringify(leads)); } catch(e){}
-        renderLeads(); renderStats(); renderSidebar();
-        openLead(row.id);
-      })
-      .catch(function(e){ console.warn('[CRM] add err', e); alert('Could not add lead: ' + e.message); });
+    var nl = Object.assign({ id: Date.now(), notes:'', created_at: new Date().toISOString() }, blank);
+    leads.unshift(nl);
+    saveLeads();
+    renderLeads(); renderStats(); renderSidebar();
+    openLead(nl.id);
   }
 
   // ── UTILS ──
@@ -2621,7 +2788,7 @@
     return raw ? JSON.parse(raw) : { tasks: [], docs: [], dates: {}, notes: '' };
   }
   function saveLeadExtra(id, data) {
-    localStorage.setItem('extra_' + id, JSON.stringify(data));
+    lsSet('extra_' + id, JSON.stringify(data));
   }
 
   function renderTasks() {
@@ -2718,6 +2885,7 @@
         docCache[id].push({ name: file.name, type: file.type, data: ev.target.result });
         saveDocsToDB(id);
         renderDocs();
+        renderLeads();
       };
       reader.readAsDataURL(file);
     });
@@ -2745,6 +2913,7 @@
     var id = String(currentId);
     if (docCache[id]) { docCache[id].splice(i, 1); saveDocsToDB(id); }
     renderDocs();
+    renderLeads();
   }
 
   function docIcon(name) {
@@ -2805,6 +2974,8 @@
         canvas.height = Math.round(img.height * ratio);
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
         pendingPhotoData = canvas.toDataURL('image/jpeg', 0.55);
+        // persist immediately (IndexedDB) so the thumbnail shows even before Save
+        if (currentId) { savePhoto(currentId, pendingPhotoData); renderLeads(); }
 
         var preview  = document.getElementById('vm-preview');
         var dropZone = document.getElementById('vm-drop');
@@ -3099,10 +3270,16 @@
     document.getElementById('c-agent').textContent=fmt(agent);
   }
   (function boot(){
+    if (checkRecoveryLink()) return; // arrived from a password-reset email
+    purgeLegacyPhotoKeys();
     var t=null; try{ t=localStorage.getItem('sb_token'); }catch(e){}
-    if(t){
-      SB_TOKEN=t;
+    if (t && !AUTH_DISABLED) {
+      SB_TOKEN = t;
       parseSession();
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='block';
+      initPhotos(function(){ loadLeads(); startAutoRefresh(); });
+    } else if (AUTH_DISABLED) {
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='block';
       initPhotos(function(){ loadLeads(); startAutoRefresh(); });
