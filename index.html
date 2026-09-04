@@ -1637,6 +1637,7 @@
         if(!Array.isArray(data) || !data.length) return; // keep local leads
         leads = data;
         lsSet('tafoy_leads', JSON.stringify(leads));
+        loadAllDocs(function(){ renderLeads(); });
         renderLeads(); renderStats(); renderSidebar();
         var dv=document.getElementById('dashboard-view'); if(dv && dv.style.display!=='none' && typeof dashFill==='function') dashFill();
         var pv=document.getElementById('pipeline-view'); if(pv && pv.style.display!=='none' && typeof renderKanban==='function') renderKanban();
@@ -1892,7 +1893,34 @@
     return docCache[String(leadId)] || [];
   }
 
-  function savePhoto(id, data) {
+  // ===== SHARED FILES (Supabase Storage) — everyone sees the same photos =====
+  var STORAGE_BUCKET = 'lead-files';
+  function publicUrl(path){ return SUPABASE_URL + '/storage/v1/object/public/' + STORAGE_BUCKET + '/' + path; }
+  function uploadToStorage(path, blob, contentType){
+    return fetch(SUPABASE_URL + '/storage/v1/object/' + STORAGE_BUCKET + '/' + path, {
+      method:'POST',
+      headers:{ 'apikey':SUPABASE_ANON, 'Authorization':'Bearer '+(SB_TOKEN||SUPABASE_ANON), 'Content-Type': contentType||'application/octet-stream', 'x-upsert':'true' },
+      body: blob
+    }).then(function(r){
+      if(!r.ok) return r.text().then(function(t){ throw new Error('upload failed: '+r.status+' '+t); });
+      return publicUrl(path);
+    });
+  }
+  function dataUrlToBlob(dataUrl){
+    var parts = dataUrl.split(',');
+    var mime = (parts[0].match(/:(.*?);/)||[])[1] || 'image/jpeg';
+    var bin = atob(parts[1]); var arr = new Uint8Array(bin.length);
+    for (var i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], {type:mime});
+  }
+  function leadById(id){ for(var i=0;i<leads.length;i++){ if(String(leads[i].id)===String(id)) return leads[i]; } return null; }
+  function patchLead(id, payload){
+    return fetch(SUPABASE_URL+'/rest/v1/leads?id=eq.'+encodeURIComponent(id), {
+      method:'PATCH', headers:sbHeaders({'Prefer':'return=minimal'}), body:JSON.stringify(payload)
+    });
+  }
+
+  function savePhotoLocalCache(id, data) {
     var key = 'photo_' + id;
     photoCache[key] = data;
     if (photoDB) {
@@ -1901,7 +1929,21 @@
     }
   }
 
+  function savePhoto(id, dataUrl) {
+    savePhotoLocalCache(id, dataUrl);
+    var path = 'photos/' + id + '-' + Date.now() + '.jpg';
+    uploadToStorage(path, dataUrlToBlob(dataUrl), 'image/jpeg')
+      .then(function(url){
+        var l = leadById(id); if (l) l.photo_url = url;
+        return patchLead(id, { photo_url: url });
+      })
+      .then(function(){ renderLeads(); })
+      .catch(function(e){ console.warn('[CRM] photo upload failed', e); showToast('Photo upload failed'); });
+  }
+
   function getPhoto(id) {
+    var l = leadById(id);
+    if (l && l.photo_url) return l.photo_url;
     return photoCache['photo_' + id] || null;
   }
 
@@ -1912,8 +1954,7 @@
     var docs = docCache[String(id)] || [];
     for (var i = 0; i < docs.length; i++) {
       var d = docs[i];
-      if (d && d.type && d.type.indexOf('image/') === 0 && d.data) return d.data;
-      if (d && d.data && String(d.data).indexOf('data:image/') === 0) return d.data;
+      if (d && d.data && (String(d.data).indexOf('data:image/') === 0 || (d.type && d.type.indexOf('image/') === 0))) return d.data;
     }
     return null;
   }
@@ -1951,7 +1992,7 @@
         if(!data || !Array.isArray(data) || !data.length) return;
         leads = data;
         lsSet('tafoy_leads', JSON.stringify(leads));
-        renderLeads(); renderStats(); renderSidebar();
+        loadAllDocs(function(){ renderLeads(); renderStats(); renderSidebar(); });
       })
       .catch(function(e){ renderLeads(); renderStats(); renderSidebar(); });
   }
@@ -2784,11 +2825,23 @@
     openLead(leadId);
   }
   function getLeadExtra(id) {
-    const raw = localStorage.getItem('extra_' + id);
-    return raw ? JSON.parse(raw) : { tasks: [], docs: [], dates: {}, notes: '' };
+    var l = leadById(id);
+    var e = (l && l.extra && typeof l.extra === 'object') ? l.extra : null;
+    if (!e) {
+      var raw = null; try { raw = localStorage.getItem('extra_' + id); } catch(_){}
+      e = raw ? JSON.parse(raw) : {};
+    }
+    if (!e.tasks) e.tasks = [];
+    if (!e.docs)  e.docs  = [];
+    if (!e.dates) e.dates = {};
+    if (typeof e.notes !== 'string') e.notes = '';
+    if (l) l.extra = e;
+    return e;
   }
   function saveLeadExtra(id, data) {
+    var l = leadById(id); if (l) l.extra = data;
     lsSet('extra_' + id, JSON.stringify(data));
+    patchLead(id, { extra: data }).catch(function(e){ console.warn('[CRM] extra save', e); });
   }
 
   function renderTasks() {
@@ -2877,18 +2930,46 @@
 
   function saveDocFiles(files) {
     if (!currentId) return;
+    var leadId = currentId;
     Array.from(files).forEach(function(file) {
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var id = String(currentId);
-        if (!docCache[id]) docCache[id] = [];
-        docCache[id].push({ name: file.name, type: file.type, data: ev.target.result });
-        saveDocsToDB(id);
-        renderDocs();
-        renderLeads();
-      };
-      reader.readAsDataURL(file);
+      var safe = (file.name||'file').replace(/[^A-Za-z0-9._-]/g,'_');
+      var path = 'docs/' + leadId + '/' + Date.now() + '-' + safe;
+      showToast('Uploading ' + file.name + '…');
+      uploadToStorage(path, file, file.type)
+        .then(function(url){
+          return fetch(SUPABASE_URL+'/rest/v1/lead_docs', {
+            method:'POST', headers:sbHeaders({'Prefer':'return=representation'}),
+            body: JSON.stringify({ lead_id: leadId, name: file.name, type: file.type, url: url, path: path })
+          }).then(function(r){ return r.json(); });
+        })
+        .then(function(rows){
+          var row = Array.isArray(rows) ? rows[0] : rows;
+          var id = String(leadId);
+          if (!docCache[id]) docCache[id] = [];
+          docCache[id].push({ docId: row && row.id, name: file.name, type: file.type, data: (row && row.url), path: path });
+          if (currentId === leadId) renderDocs();
+          renderLeads();
+          showToast('Uploaded ✓');
+        })
+        .catch(function(e){ console.warn('[CRM] doc upload failed', e); showToast('Upload failed'); });
     });
+  }
+
+  function loadAllDocs(cb) {
+    fetch(SUPABASE_URL+'/rest/v1/lead_docs?select=*&order=created_at.asc', { headers: sbHeaders() })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        if (Array.isArray(rows)) {
+          docCache = {};
+          rows.forEach(function(row){
+            var k = String(row.lead_id);
+            if (!docCache[k]) docCache[k] = [];
+            docCache[k].push({ docId: row.id, name: row.name, type: row.type, data: row.url, path: row.path });
+          });
+        }
+        if (cb) cb();
+      })
+      .catch(function(e){ console.warn('[CRM] loadAllDocs', e); if (cb) cb(); });
   }
 
   function renderDocs() {
@@ -2911,9 +2992,19 @@
 
   function deleteDoc(i) {
     var id = String(currentId);
-    if (docCache[id]) { docCache[id].splice(i, 1); saveDocsToDB(id); }
-    renderDocs();
-    renderLeads();
+    var doc = (docCache[id]||[])[i];
+    if (!doc) return;
+    docCache[id].splice(i, 1);
+    renderDocs(); renderLeads();
+    if (doc.docId) {
+      fetch(SUPABASE_URL+'/rest/v1/lead_docs?id=eq.'+encodeURIComponent(doc.docId), { method:'DELETE', headers:sbHeaders() })
+        .catch(function(e){ console.warn('[CRM] doc delete', e); });
+    }
+    if (doc.path) {
+      fetch(SUPABASE_URL+'/storage/v1/object/'+STORAGE_BUCKET+'/'+doc.path, {
+        method:'DELETE', headers:{ 'apikey':SUPABASE_ANON, 'Authorization':'Bearer '+(SB_TOKEN||SUPABASE_ANON) }
+      }).catch(function(){});
+    }
   }
 
   function docIcon(name) {
@@ -2925,8 +3016,7 @@
   }
 
   function openLightbox(i) {
-    var extra = getLeadExtra(currentId);
-    var doc = extra.docs[i];
+    var doc = getDocsForLead(currentId)[i];
     if (!doc) return;
     if (doc.type && doc.type.indexOf('image/') === 0) {
       document.getElementById('lightbox-img').src = doc.data;
